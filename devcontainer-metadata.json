@@ -1,0 +1,17 @@
+{
+  "remoteUser": "devuser",
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "terminal.integrated.defaultProfile.linux": "zsh",
+        "terminal.integrated.persistentSessionReviveProcess": "never"
+      },
+      "extensions": [
+        "eamodio.gitlens",
+        "EditorConfig.EditorConfig",
+        "mhutchie.git-graph",
+        "mikestead.dotenv"
+      ]
+    }
+  }
+}

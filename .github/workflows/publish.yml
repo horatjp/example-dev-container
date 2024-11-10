@@ -1,0 +1,59 @@
+name: Publish to Container Registry
+on:
+  push:
+    tags:
+      - '*'
+
+permissions:
+  packages: write
+  contents: read
+  security-events: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: example-dev-container
+  VERSION: ${{ github.ref_name }}
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Read devcontainer metadata
+        id: devcontainer-metadata
+        run: |
+          if [ -f "devcontainer-metadata.json" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            # FIXME: Add spaces around commas in jq output to fix metadata parsing issue in docker/metadata-action
+            # The metadata-action has issues parsing compact JSON without spaces around commas
+            echo "content=$(cat devcontainer-metadata.json | jq -c | sed 's/,/ , /g')" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate metadata
+        id: metadata
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ env.VERSION }}
+          labels: |
+            ${{ steps.devcontainer-metadata.outputs.exists == 'true' && format('devcontainer.metadata={0}', steps.devcontainer-metadata.outputs.content) || '' }}
+
+      - name: Login to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build container
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.metadata.outputs.tags }}
+          labels: ${{ steps.metadata.outputs.labels }}
